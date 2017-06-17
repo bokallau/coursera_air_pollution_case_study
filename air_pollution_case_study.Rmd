@@ -1,0 +1,149 @@
+---
+title: "Air_pollution_case_study"
+author: "Bruce Okallau"
+date: "6/17/2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy = TRUE)
+```
+
+# Air Pollution Case Study
+This is my attempt at an exercise from Roger D Peng's "Explority Data Analysis" course on Coursera. Instead of comparing 1999 to 2012 I will compare 2012 to 2016.
+
+## Step 1 - Read in the data
+```{r}
+all.data2012 <- read.csv("daily_aqi_by_cbsa_2012.csv")
+head(all.data2012,20)
+```
+
+Note, this is slightly different from the example in the video due to changes in the EPA's data collection and warehousing. In order to compare only PM2.5 values I will need to create a subset.
+
+```{r}
+pm2012 <- subset(all.data2012, Defining.Parameter=="PM2.5")
+head(pm2012)
+```
+
+Note: "sample value" is now called "AQI".
+
+```{r}
+x2012 <- pm2012$AQI
+class(x2012)
+```
+
+```{r}
+str(x2012)
+summary(x2012)
+```
+
+The 2012 data available in this dataset is about half the size of the file in the example. There are no missing values.
+
+```{r}
+# performing the same steps for 2016
+all.data2016 <- read.csv("daily_aqi_by_cbsa_2016.csv")
+pm2016 <- subset(all.data2016, Defining.Parameter=="PM2.5")
+x2016 <- pm2016$AQI
+str(x2016)
+summary(x2016)
+```
+
+There are comperable observations in 2016. The difference is that AQI are integers and the sample values are floats.
+
+```{r}
+#visualize the difference in the means, using log transform
+boxplot(log10(x2012),log10(x2016))
+```
+
+## Exploring change at one monitor
+```{r}
+# does site 10140 have enough observations to be a good site?
+nrow(subset(pm2012, CBSA.Code==10140))
+nrow(subset(pm2016, CBSA.Code==10140))
+```
+
+```{r}
+#subset for site 10140 for each year
+site0 <- (subset(pm2012, CBSA.Code==10140))
+site1 <- subset(pm2016, CBSA.Code==10140)
+dim(site0)
+dim(site1)
+```
+
+```{r}
+# compare site observations over time first with 2012
+plot(site0$Date, site0$AQI)
+```
+
+```{r}
+# compare site observations over time now with 2016
+plot(site1$Date, site1$AQI)
+```
+
+```{r}
+rng <- range(site0$AQI, site1$AQI)
+par(mfrow = c(1,2), mar= c(4,4,2,1))
+plot(site0$Date, site0$AQI, pch= 20, ylim = rng)
+abline(h = median(site0$AQI))
+plot(site1$Date, site1$AQI, pch = 20, ylim = rng)
+abline(h = median(site1$AQI))
+```
+
+The median AQI was higher in 2016 but not by much and the spread of AQI values was slightly smaller in 2016.
+
+## How have States changed from 2012 to 2016
+```{r}
+# state is last two characters of CBSA string
+pm2012$state <- str_sub(pm2012$CBSA, start= -2)
+pm2016$state <- str_sub(pm2016$CBSA, start= -2)
+```
+
+```{r}
+# what's the mean by state in 2012
+mn0 <- with(pm2012, tapply(AQI, state, mean))
+summary(mn0)
+```
+
+```{r}
+# now for 2016
+mn1 <- with(pm2016, tapply(AQI, state, mean))
+#create dataframe with means and states
+d0 <- data.frame(state = names(mn0), mean = mn0)
+d1 <- data.frame(state = names(mn1), mean = mn1)
+mrg <- merge(d0, d1, by = "state")
+```
+
+```{r}
+# plot the state averages
+par(mfrow = c(1,1))
+rng1 <- range(mrg$mean.x, mrg$mean.y)
+with(mrg, plot(rep(2012, 50), mrg[,2], xlim= c(2011, 2017),ylim=rng1))
+with(mrg, points(rep(2016, 50), mrg[,3]))
+segments(rep(2012, 50), mrg[,2], rep(2016, 50), mrg[,3])
+```
+
+We see mostly a downward trend.
+
+```{r}
+# states with highest means in 2012
+highest.states.d0 <- d0[order(-d0$mean),]
+head(highest.states.d0, 10)
+```
+
+```{r}
+# states with highest means in 2016
+highest.states.d1 <- d1[order(-d1$mean),]
+head(highest.states.d1, 10)
+```
+
+```{r}
+# states with loweest means in 2012
+lowest.states.d0 <- d0[order(d0$mean),]
+head(lowest.states.d0, 10)
+```
+
+```{r}
+# states with loweest means in 2016
+lowest.states.d1 <- d1[order(d1$mean),]
+head(lowest.states.d1, 10)
+```
